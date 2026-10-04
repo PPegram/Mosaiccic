@@ -1,21 +1,37 @@
 (() => {
   const root = document.documentElement;
-  const themeButton = document.querySelector('.theme-toggle');
+  const themeSelect = document.querySelector('.theme-toggle');
   const scheme = window.matchMedia('(prefers-color-scheme: dark)');
-  let manualTheme = false;
-  const setTheme = (dark) => {
-    root.dataset.theme = dark ? 'dark' : 'light';
-    if (themeButton) {
-      themeButton.textContent = dark ? 'Light' : 'Dark';
-      themeButton.setAttribute('aria-label', `Use ${dark ? 'light' : 'dark'} colours`);
-    }
+  let choice = root.dataset.themeChoice || 'system';
+  const updateLinks = () => {
+    document.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#')) return;
+      const url = new URL(href, document.baseURI);
+      if (url.origin !== window.location.origin) return;
+      if (choice === 'system') url.searchParams.delete('theme');
+      else url.searchParams.set('theme', choice);
+      a.href = url.href;
+    });
   };
-  setTheme(scheme.matches);
-  themeButton?.addEventListener('click', () => {
-    manualTheme = true;
-    setTheme(root.dataset.theme !== 'dark');
+  const setTheme = () => {
+    const dark = choice === 'dark' || (choice === 'system' && scheme.matches);
+    root.dataset.theme = dark ? 'dark' : 'light';
+    root.dataset.themeChoice = choice;
+    root.style.colorScheme = dark ? 'dark' : 'light';
+    if (themeSelect) themeSelect.value = choice;
+    updateLinks();
+  };
+  setTheme();
+  themeSelect?.addEventListener('change', () => {
+    choice = themeSelect.value;
+    setTheme();
+    const url = new URL(window.location.href);
+    if (choice === 'system') url.searchParams.delete('theme');
+    else url.searchParams.set('theme', choice);
+    try { window.history.replaceState(null, '', url.href); } catch { /* Link propagation still works in restricted previews. */ }
   });
-  scheme.addEventListener('change', e => { if (!manualTheme) setTheme(e.matches); });
+  scheme.addEventListener('change', () => { if (choice === 'system') setTheme(); });
   const menuButton = document.querySelector('.menu-toggle');
   const nav = document.getElementById('mobile-nav');
   const setMenu = (open) => {
